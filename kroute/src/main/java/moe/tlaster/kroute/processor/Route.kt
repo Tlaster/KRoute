@@ -9,14 +9,12 @@ annotation class Route(
 )
 
 @Retention(AnnotationRetention.SOURCE)
-@Target(AnnotationTarget.CLASS)
-annotation class RouteGraph
-
-@Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.FUNCTION)
 annotation class ComposableRoute(
-    val route: String = "",
+    val route: String,
     val deeplink: Array<String> = [],
+    val packageName: String = "androidx.navigation.compose",
+    val simpleName: String = "composable"
 )
 
 @Retention(AnnotationRetention.SOURCE)

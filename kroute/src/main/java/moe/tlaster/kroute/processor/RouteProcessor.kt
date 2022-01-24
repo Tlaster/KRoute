@@ -1,5 +1,7 @@
 package moe.tlaster.kroute.processor
 
+import com.google.devtools.ksp.KspExperimental
+import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.Resolver
@@ -11,6 +13,7 @@ import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSNode
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
+import com.google.devtools.ksp.validate
 import com.google.devtools.ksp.visitor.KSEmptyVisitor
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ksp.KotlinPoetKspPreview
@@ -22,30 +25,32 @@ internal class RouteProcessor(
     private val codeGenerator: CodeGenerator,
 ) : SymbolProcessor {
     override fun process(resolver: Resolver): List<KSAnnotated> {
-        val routeSymbol = resolver
+        val symbols = resolver
             .getSymbolsWithAnnotation(
                 Route::class.qualifiedName
                     ?: throw CloneNotSupportedException("Can not get qualifiedName for Route")
             )
             .filterIsInstance<KSClassDeclaration>()
-        routeSymbol.forEach { it.accept(RouteVisitor(), routeSymbol.toList()) }
-        return emptyList()
+        val ret = symbols.filter { !it.validate() }.toList()
+        symbols
+            .filter { it.validate() }
+            .forEach { it.accept(RouteVisitor(), symbols.toList()) }
+        return ret
     }
 
     inner class RouteVisitor : KSEmptyVisitor<List<KSClassDeclaration>, Unit>() {
+        @OptIn(KspExperimental::class)
         override fun defaultHandler(node: KSNode, data: List<KSClassDeclaration>) {
             if (node !is KSClassDeclaration) {
                 return
             }
 
-            val annotation = node.annotations
-                .firstOrNull { it.annotationType.resolve().declaration.qualifiedName?.asString() == Route::class.qualifiedName }
-                ?: return
+            val annotation = node.getAnnotationsByType(Route::class).firstOrNull() ?: return
 
-            val schema = annotation.getStringValue(Route::schema.name) ?: ""
-            val packageName = annotation.getStringValue(Route::packageName.name)
+            val schema = annotation.schema
+            val packageName = annotation.packageName.takeIf { it.isNotEmpty() }
                 ?: node.packageName.asString()
-            val className = annotation.getStringValue(Route::className.name)
+            val className = annotation.className.takeIf { it.isNotEmpty() }
                 ?: node.qualifiedName?.getShortName() ?: "<ERROR>"
 
             val route = generateRoute(declaration = node)
@@ -132,11 +137,3 @@ internal class RouteProcessor(
         }
     }
 }
-
-private fun OutputStream.appendLine(str: String = "") {
-    this.write("$str${System.lineSeparator()}".toByteArray())
-}
-
-internal fun KSAnnotation.getStringValue(name: String): String? = arguments
-    .firstOrNull { it.name?.asString() == name }
-    ?.let { it.value as? String? }.takeIf { !it.isNullOrEmpty() }

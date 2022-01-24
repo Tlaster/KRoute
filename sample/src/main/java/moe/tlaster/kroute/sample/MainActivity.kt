@@ -5,10 +5,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import moe.tlaster.kroute.processor.ComposableRoute
+import moe.tlaster.kroute.processor.Path
 import moe.tlaster.kroute.processor.Route
 
 class MainActivity : ComponentActivity() {
@@ -35,14 +39,25 @@ interface IRoot {
 }
 
 @ComposableRoute(
-    route = Root.Home
+    route = Root.Home,
 )
 @Composable
-fun Home() {
+fun Home(
+    @Path("userName") username: String?,
+) {
     NavHost(
         rememberNavController(),
         startDestination = "asd"
     ) {
-
+        composable(
+            "",
+            arguments = listOf(
+                navArgument("") { type = NavType.StringType; nullable = false }
+            ),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "dsa" }
+            )
+        ) {
+        }
     }
 }
