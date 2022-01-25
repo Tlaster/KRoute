@@ -76,7 +76,7 @@ fun Home(
 )
 @Composable
 fun Detail(
-    @Query("id") id: String?,
+    @Path("id") id: String?,
     @Back onBack: () -> Unit,
 ) {
     if (id == null) {
