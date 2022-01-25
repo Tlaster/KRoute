@@ -32,26 +32,27 @@ internal data class PrefixRouteDefinition(
     val child: NestedRouteDefinition,
     val className: String,
 ) : RouteDefinition {
+
     override val name: String
         get() = if (schema.isEmpty()) "" else "$schema:$RouteDivider"
     override val parent: RouteDefinition?
         get() = null
 
     init {
+        child.name = className
         child.parent = this
     }
 
     override fun generateRoute(): Taggable {
-        return child.copy(name = className).generateRoute()
+        return child.generateRoute()
     }
 }
 
 internal data class NestedRouteDefinition(
-    override val name: String,
+    override var name: String,
     override var parent: RouteDefinition? = null,
     val childRoute: ArrayList<RouteDefinition> = arrayListOf(),
 ) : RouteDefinition {
-
     override fun generateRoute(): Taggable {
         return TypeSpec.objectBuilder(name)
             .apply {

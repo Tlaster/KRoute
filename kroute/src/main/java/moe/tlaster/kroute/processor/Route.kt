@@ -10,11 +10,11 @@ annotation class Route(
 
 @Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.FUNCTION)
-annotation class ComposableRoute(
+annotation class RouteGraphDestination(
     val route: String,
     val deeplink: Array<String> = [],
     val packageName: String = "androidx.navigation.compose",
-    val simpleName: String = "composable"
+    val functionName: String = "composable"
 )
 
 @Retention(AnnotationRetention.SOURCE)
@@ -28,3 +28,15 @@ annotation class Path(
 annotation class Query(
     val name: String = "",
 )
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class Navigate(
+    val target: String,
+)
+
+
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.VALUE_PARAMETER)
+annotation class Back
+

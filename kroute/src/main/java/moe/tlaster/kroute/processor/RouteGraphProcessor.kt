@@ -1,20 +1,19 @@
 package moe.tlaster.kroute.processor
 
-import com.google.devtools.ksp.KspExperimental
-import com.google.devtools.ksp.getAnnotationsByType
-import com.google.devtools.ksp.isAnnotationPresent
+import com.google.devtools.ksp.*
 import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
-import com.google.devtools.ksp.symbol.KSAnnotated
-import com.google.devtools.ksp.symbol.KSFunctionDeclaration
-import com.google.devtools.ksp.symbol.KSNode
+import com.google.devtools.ksp.symbol.*
 import com.google.devtools.ksp.visitor.KSEmptyVisitor
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ksp.KotlinPoetKspPreview
 import com.squareup.kotlinpoet.ksp.toTypeName
 import com.squareup.kotlinpoet.ksp.writeTo
+
+private val navControllerType = ClassName("androidx.navigation", "NavController")
+private const val navControllerName = "controller"
 
 @OptIn(KotlinPoetKspPreview::class, KspExperimental::class)
 class RouteGraphProcessor(
@@ -23,12 +22,12 @@ class RouteGraphProcessor(
     override fun process(resolver: Resolver): List<KSAnnotated> {
         val symbols = resolver
             .getSymbolsWithAnnotation(
-                ComposableRoute::class.qualifiedName
+                RouteGraphDestination::class.qualifiedName
                     ?: throw CloneNotSupportedException("Can not get qualifiedName for ComposableRoute")
             ).filterIsInstance<KSFunctionDeclaration>().toList()
         val ret = symbols.filter {
             try {
-                it.getAnnotationsByType(ComposableRoute::class).first().route
+                it.getAnnotationsByType(RouteGraphDestination::class).first().route
                 false
             } catch (e: Throwable) {
                 true
@@ -36,7 +35,7 @@ class RouteGraphProcessor(
         }
         val actualSymbols = symbols.filter {
             try {
-                it.getAnnotationsByType(ComposableRoute::class).first().route
+                it.getAnnotationsByType(RouteGraphDestination::class).first().route
                 true
             } catch (e: Throwable) {
                 false
@@ -60,26 +59,35 @@ class RouteGraphProcessor(
                 true,
                 *(data.mapNotNull { it.containingFile }).toTypedArray()
             )
+            if (codeGenerator.generatedFile.any { it.nameWithoutExtension == "RouteGraph" }) {
+                return
+            }
             FileSpec.builder(node.packageName.asString(), "RouteGraph")
                 .addImport("androidx.navigation", "NavType")
                 .addImport("androidx.navigation", "navDeepLink")
                 .addImport("androidx.navigation", "navArgument")
                 .also { fileBuilder ->
                     fileBuilder.addFunction(
-                        FunSpec.builder("route")
+                        FunSpec.builder("generatedRoute")
                             .receiver(ClassName("androidx.navigation", "NavGraphBuilder"))
+                            .addParameter(
+                                navControllerName,
+                                navControllerType,
+                            )
                             .also { builder ->
                                 data.forEach { ksFunctionDeclaration ->
                                     val annotation =
-                                        ksFunctionDeclaration.getAnnotationsByType(ComposableRoute::class)
+                                        ksFunctionDeclaration.getAnnotationsByType(
+                                            RouteGraphDestination::class
+                                        )
                                             .first()
                                     fileBuilder.addImport(
                                         annotation.packageName,
-                                        annotation.simpleName
+                                        annotation.functionName
                                     )
                                     builder.addStatement(
                                         "%N(",
-                                        annotation.simpleName,
+                                        annotation.functionName,
                                     )
                                     builder.addCode(
                                         buildCodeBlock {
@@ -90,7 +98,11 @@ class RouteGraphProcessor(
                                                 )
                                                 addStatement("arguments = listOf(")
                                                 withIndent {
-                                                    ksFunctionDeclaration.parameters.forEach {
+                                                    ksFunctionDeclaration.parameters.filter {
+                                                        it.isAnnotationPresent(
+                                                            Query::class
+                                                        ) || it.isAnnotationPresent(Path::class)
+                                                    }.forEach {
                                                         addStatement(
                                                             "navArgument(%S) { type = NavType.%NType; nullable = %L }",
                                                             it.name?.asString() ?: "",
@@ -115,7 +127,9 @@ class RouteGraphProcessor(
                                     )
                                     builder.beginControlFlow(")")
                                     ksFunctionDeclaration.parameters.forEach {
-                                        require(it.type.resolve().isMarkedNullable)
+                                        if (it.isAnnotationPresent(Query::class) || it.isAnnotationPresent(Path::class)) {
+                                            require(it.type.resolve().isMarkedNullable)
+                                        }
                                         if (it.isAnnotationPresent(Path::class)) {
                                             val path = it.getAnnotationsByType(Path::class).first()
                                             builder.addStatement(
@@ -141,11 +155,47 @@ class RouteGraphProcessor(
                                             )
                                             withIndent {
                                                 ksFunctionDeclaration.parameters.forEach {
-                                                    addStatement(
-                                                        "%N = %N,",
-                                                        it.name?.asString() ?: "",
-                                                        it.name?.asString() ?: ""
-                                                    )
+                                                    when {
+                                                        it.type.toTypeName() == navControllerType -> {
+                                                            addStatement(
+                                                                "%N = %N,",
+                                                                it.name?.asString() ?: "",
+                                                                navControllerName
+                                                            )
+                                                        }
+                                                        it.isAnnotationPresent(Query::class) || it.isAnnotationPresent(Path::class) -> {
+                                                            addStatement(
+                                                                "%N = %N,",
+                                                                it.name?.asString() ?: "",
+                                                                it.name?.asString() ?: ""
+                                                            )
+                                                        }
+                                                        it.isAnnotationPresent(Back::class) -> {
+                                                            addStatement(
+                                                                "%N = { %N.navigateUp() },",
+                                                                it.name?.asString() ?: "",
+                                                                navControllerName
+                                                            )
+                                                        }
+                                                        it.isAnnotationPresent(Navigate::class) -> {
+                                                            val target = it.getAnnotationsByType(Navigate::class).first().target
+                                                            val type = it.type.resolve()
+                                                            require(type.isFunctionType)
+                                                            val declaration = type.declaration as KSClassDeclaration
+                                                            val parameters = declaration.getDeclaredFunctions().first().parameters
+                                                            val parameter = if (parameters.any()) {
+                                                                "\\{(\\w+)}".toRegex().findAll(target).map { it.groups[1]?.value }.joinToString(",") + " ->"
+                                                            } else {
+                                                                ""
+                                                            }
+                                                            addStatement(
+                                                                "%N = { $parameter %N.navigate(%P) },",
+                                                                it.name?.asString() ?: "",
+                                                                navControllerName,
+                                                                target.replace("{", "\${")
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
                                             addStatement(")")
