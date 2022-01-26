@@ -47,7 +47,8 @@ class RouteGraphProcessor(
             true,
             *(data.mapNotNull { it.containingFile }).toTypedArray()
         )
-        FileSpec.builder(data.first().packageName.asString(), "RouteGraph")
+        val packageName = data.first().packageName
+        FileSpec.builder(packageName.asString(), "RouteGraph")
             .addImport("androidx.navigation", "NavType")
             .addImport("androidx.navigation", "navDeepLink")
             .addImport("androidx.navigation", "navArgument")
@@ -61,6 +62,9 @@ class RouteGraphProcessor(
                         )
                         .also { builder ->
                             data.forEach { ksFunctionDeclaration ->
+                                if (packageName != ksFunctionDeclaration.packageName) {
+                                    fileBuilder.addImport(ksFunctionDeclaration.packageName.asString(), fileBuilder.name)
+                                }
                                 val annotation =
                                     ksFunctionDeclaration.getAnnotationsByType(
                                         RouteGraphDestination::class
