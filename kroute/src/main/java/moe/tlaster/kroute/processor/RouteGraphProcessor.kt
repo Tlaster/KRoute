@@ -16,7 +16,7 @@ private val navControllerType = ClassName("androidx.navigation", "NavController"
 private const val navControllerName = "controller"
 
 @OptIn(KotlinPoetKspPreview::class, KspExperimental::class)
-class RouteGraphProcessor(
+internal class RouteGraphProcessor(
     private val codeGenerator: CodeGenerator
 ) : SymbolProcessor {
     override fun process(resolver: Resolver): List<KSAnnotated> {
