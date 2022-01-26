@@ -63,7 +63,7 @@ class RouteGraphProcessor(
                         .also { builder ->
                             data.forEach { ksFunctionDeclaration ->
                                 if (packageName != ksFunctionDeclaration.packageName) {
-                                    fileBuilder.addImport(ksFunctionDeclaration.packageName.asString(), fileBuilder.name)
+                                    fileBuilder.addImport(ksFunctionDeclaration.packageName.asString(), ksFunctionDeclaration.simpleName.asString())
                                 }
                                 val annotation =
                                     ksFunctionDeclaration.getAnnotationsByType(
