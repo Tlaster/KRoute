@@ -93,7 +93,7 @@ class RouteGraphProcessor(
                                                     ) || it.isAnnotationPresent(Path::class)
                                                 }.forEach {
                                                     addStatement(
-                                                        "navArgument(%S) { type = NavType.%NType; nullable = %L }",
+                                                        "navArgument(%S) { type = NavType.%NType; nullable = %L },",
                                                         it.name?.asString() ?: "",
                                                         it.type.resolve().declaration.simpleName.asString(),
                                                         it.isAnnotationPresent(Query::class)
