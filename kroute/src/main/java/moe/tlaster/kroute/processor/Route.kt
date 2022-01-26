@@ -9,20 +9,12 @@ annotation class Route(
 )
 
 @Retention(AnnotationRetention.SOURCE)
-annotation class RoutePackage(
-    val packageName: String,
-    val functionName: String,
-)
-
-@Retention(AnnotationRetention.SOURCE)
 @Target(AnnotationTarget.FUNCTION)
 annotation class RouteGraphDestination(
     val route: String,
     val deeplink: Array<String> = [],
-    val routePackage: RoutePackage = RoutePackage(
-        packageName = "androidx.navigation.compose",
-        functionName = "composable"
-    ),
+    val packageName: String = "androidx.navigation.compose",
+    val functionName: String = "composable"
 )
 
 @Retention(AnnotationRetention.SOURCE)
