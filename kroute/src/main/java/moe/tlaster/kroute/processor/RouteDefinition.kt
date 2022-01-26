@@ -108,14 +108,18 @@ internal data class FunctionRouteDefinition(
                             it.addStatement(
                                 "val params = %S + %P",
                                 RouteDivider,
-                                p.joinToString(RouteDivider){ "\${${encode(it.name)}}" },
+                                p.joinToString(RouteDivider){ if (it.type == ClassName("kotlin", "String")) "\${${encode(it.name)}}" else "\${${it.name}}" },
                             )
                         } else {
                             it.addStatement("val params = \"\"")
                         }
                         if (query.any()) {
                             it.addStatement("val query = \"?\" + %P", query.joinToString("&") {
-                                "${it.name}=\${${encodeNullable(it.name)}}"
+                                if (it.type == ClassName("kotlin", "String")) {
+                                    "${it.name}=\${${encodeNullable(it.name)}}"
+                                } else {
+                                    "${it.name}=\${${it.name}}"
+                                }
                             })
                         } else {
                             it.addStatement("val query = \"\"")

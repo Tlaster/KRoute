@@ -46,6 +46,7 @@ fun Route() {
 interface RootRoute {
     val Home: String
     fun Detail(id: String): String
+    fun Item(index: Long?): String
 }
 
 @RouteGraphDestination(
