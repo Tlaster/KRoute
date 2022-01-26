@@ -71,12 +71,12 @@ class RouteGraphProcessor(
                                     )
                                         .first()
                                 fileBuilder.addImport(
-                                    annotation.packageName,
-                                    annotation.functionName
+                                    annotation.routePackage.packageName,
+                                    annotation.routePackage.functionName
                                 )
                                 builder.addStatement(
                                     "%N(",
-                                    annotation.functionName,
+                                    annotation.routePackage.functionName,
                                 )
                                 builder.addCode(
                                     buildCodeBlock {
